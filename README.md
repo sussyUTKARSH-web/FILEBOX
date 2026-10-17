@@ -1,3 +1,4 @@
+
 # FileBox
 
 FileBox is an educational local file manager that connects three layers:
@@ -41,3 +42,4 @@ The C helper is rebuilt on launch when its source file is newer than the executa
 - `WRITE` permission allows replacing file contents. Only the owner can rename, move, share, or delete a file.
 - Folder deletion is not exposed in the interface; files can be removed individually.
 - MySQL and Python setup are external prerequisites. Do not put database passwords in source files; use `.env`.
+

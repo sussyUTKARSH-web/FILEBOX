@@ -1,0 +1,8 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+c_backend/*.dll
+c_backend/*.exe
+storage/**
+!storage/.gitkeep

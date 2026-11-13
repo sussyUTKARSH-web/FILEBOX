@@ -9,4 +9,5 @@ if (-not (Test-Path '.env')) {
 if (-not (Test-Path '.venv\Scripts\python.exe')) {
     throw 'Run setup.ps1 first.'
 }
-& '.venv\Scripts\python.exe' 'src\app.py'
+Write-Host 'Starting FileBox web server on http://127.0.0.1:80'
+& '.venv\Scripts\python.exe' 'src\web_app.py'

@@ -54,6 +54,7 @@ static int join_path(const wchar_t *root, const wchar_t *relative, wchar_t *out,
     out[n] = L'\0';
     return 1;
 }
+// dipanshus work
 
 static int ensure_parent_dirs(const wchar_t *path) {
     wchar_t tmp[FB_PATH_CAP];

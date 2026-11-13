@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}{{ info.file_name }} · FileBox{% endblock %}
+{% block body_class %}preview-page{% endblock %}
+{% block content %}
+<main class="viewer-shell">
+  <header class="viewer-header"><a class="brand" href="{{ url_for('dashboard') }}"><span class="brand-mark">▰</span><span>FileBox</span></a><div class="viewer-title"><span class="file-dot">{{ extension|upper if extension else 'FILE' }}</span><div><b>{{ info.file_name }}</b><small>Owned by {{ info.owner_name }} · {{ info.access_label }} · {{ info.file_size|filesizeformat }}</small></div></div><div class="viewer-actions"><a class="button button-outline" href="{{ url_for('dashboard') }}">← Back to files</a>{% if info.can_download %}<a class="button button-primary" href="{{ url_for('download_file', file_id=info.file_id) }}">↓ Download</a>{% endif %}{% if info.is_owner %}<a class="button button-outline" href="{{ url_for('share_file', file_id=info.file_id) }}">Sharing</a>{% endif %}</div></header>
+  {% if preview_kind == 'pdf' %}<section class="preview-frame"><iframe title="PDF preview" src="{{ url_for('file_content', file_id=info.file_id) }}#toolbar=1"></iframe></section>
+  {% elif preview_kind == 'image' %}<section class="preview-canvas"><img class="image-preview" src="{{ url_for('file_content', file_id=info.file_id) }}" alt="Preview of {{ info.file_name }}"></section>
+  {% elif preview_kind == 'audio' %}<section class="media-card"><div class="media-symbol">♫</div><h1>{{ info.file_name }}</h1><audio controls preload="metadata" src="{{ url_for('file_content', file_id=info.file_id) }}">Your browser does not support audio playback.</audio></section>
+  {% elif preview_kind == 'video' %}<section class="preview-canvas"><video class="video-preview" controls preload="metadata" src="{{ url_for('file_content', file_id=info.file_id) }}">Your browser does not support video playback.</video></section>
+  {% elif preview_kind == 'html' %}<section class="html-preview-wrap"><p class="safety-note">HTML preview is sandboxed. Uploaded scripts and forms are disabled.</p><iframe class="html-preview" title="Sandboxed HTML preview" sandbox="" src="{{ url_for('file_content', file_id=info.file_id) }}"></iframe></section>
+  {% elif preview_kind == 'text' %}
+    <section class="text-preview">
+      <div class="preview-label">TEXT FILE</div>
+      {% if preview_text == '' %}<p class="empty-text-note">This text file is empty.{% if editable %} Type in the editor below and save to add content.{% endif %}</p>{% endif %}
+      {% if editable %}
+        <form method="post" action="{{ url_for('edit_text_file', file_id=info.file_id) }}" data-confirm="Save changes to the original file?" data-edit-lock data-heartbeat-url="{{ url_for('edit_lock_heartbeat', file_id=info.file_id) }}" data-release-url="{{ url_for('release_edit_lock', file_id=info.file_id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="edit_token" value="{{ edit_token }}">
+          <div class="edit-toolbar"><span class="edit-lock-status">Exclusive edit lock active for you.</span><label class="priority-control">Access priority<select name="priority"><option value="0">Low</option><option value="1" selected>Normal</option><option value="2">High</option></select></label><button class="button button-primary" type="submit">Save changes</button></div>
+          <textarea class="text-editor" name="content" aria-label="Text file contents" spellcheck="false">{{ preview_text }}</textarea>
+        </form>
+      {% elif edit_locked_by %}
+        <p class="edit-locked-note" role="status">{{ edit_locked_by }} is editing this file. You can view it, but editing is locked until they leave the editor. Refresh this page to try again.</p>
+        <pre class="text-content">{{ preview_text }}</pre>
+      {% else %}
+        <pre class="text-content">{{ preview_text }}</pre>
+      {% endif %}
+    </section>
+  {% elif preview_kind == 'csv' %}<section class="table-preview"><div class="preview-label">CSV · first 300 rows</div>{% if csv_rows %}<div class="table-scroll"><table><tbody>{% for row in csv_rows %}{% set outer_loop = loop %}<tr>{% for cell in row %}{% if outer_loop.first %}<th>{{ cell }}</th>{% else %}<td>{{ cell }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody></table></div>{% else %}<p>This CSV file is empty.</p>{% endif %}</section>
+  {% elif preview_kind == 'docx' %}<article class="document-preview"><div class="preview-label">DOCUMENT PREVIEW</div>{% for paragraph in document_paragraphs %}<p>{{ paragraph }}</p>{% endfor %}</article>
+  {% elif preview_kind == 'xlsx' %}<section class="table-preview"><div class="preview-label">SPREADSHEET · first worksheet, up to 300 rows</div><div class="table-scroll"><table><tbody>{% for row in spreadsheet_rows %}<tr>{% for cell in row %}<td>{{ cell if cell is not none else '' }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></section>
+  {% else %}<section class="unsupported-card"><div class="empty-art">▤</div><h1>Preview unavailable</h1><p>{{ error_message or 'This file type is not supported by the in-browser preview.' }}</p><p class="subtle">File type: {{ extension|upper if extension else 'unknown' }} · {{ info.file_size|filesizeformat }}</p>{% if info.can_download %}<a class="button button-primary" href="{{ url_for('download_file', file_id=info.file_id) }}">Download file</a>{% endif %}</section>{% endif %}
+  {% if replace_allowed %}<details class="replace-panel"><summary>Replace with a new version</summary><form method="post" enctype="multipart/form-data" action="{{ url_for('replace_file', file_id=info.file_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Select replacement file<input type="file" name="file" required></label><label class="priority-control">Access priority<select name="priority"><option value="0">Low</option><option value="1" selected>Normal</option><option value="2">High</option></select></label><button class="button button-outline">Replace contents</button></form></details>{% endif %}
+</main>
+{% endblock %}

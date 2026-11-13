@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Create account' if mode == 'register' else 'Sign in' }} · FileBox{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+{% block content %}
+<main class="auth-shell">
+  <section class="auth-card">
+    <a class="brand" href="{{ url_for('login') }}"><span class="brand-mark">▰</span><span>FileBox</span></a>
+    <p class="auth-lead">{{ 'Create an account to organize and share files.' if mode == 'register' else 'Sign in to manage your files.' }}</p>
+    <form method="post" class="auth-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if mode == 'register' %}
+        <label>Display name<input name="username" autocomplete="name" maxlength="80" required></label>
+      {% endif %}
+      <label>Email<input name="email" type="email" value="{{ email }}" autocomplete="email" maxlength="254" required></label>
+      <label>Password<span class="password-wrap"><input id="password" name="password" type="password" autocomplete="{{ 'new-password' if mode == 'register' else 'current-password' }}" minlength="8" required><button type="button" class="eye-button" data-toggle-password="password" aria-label="Show password">👁️</button></span></label>
+      {% if mode == 'register' %}<p class="field-note">Use at least 8 characters.</p>{% endif %}
+      <button class="button button-primary button-wide" type="submit">{{ 'Create account' if mode == 'register' else 'Sign in' }}</button>
+    </form>
+    <p class="auth-switch">{% if mode == 'register' %}Already have an account? <a href="{{ url_for('login') }}">Sign in</a>{% else %}New to FileBox? <a href="{{ url_for('register') }}">Create an account</a>{% endif %}</p>
+    <p class="local-note">Local FileBox · your files stay on this computer</p>
+  </section>
+</main>
+{% endblock %}

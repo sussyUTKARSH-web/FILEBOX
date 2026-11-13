@@ -1,0 +1,4 @@
+{% extends 'base.html' %}
+{% block title %}{{ code }} · FileBox{% endblock %}
+{% block body_class %}management-page{% endblock %}
+{% block content %}<main class="error-card"><a class="brand" href="{{ url_for('dashboard') if current_user else url_for('login') }}"><span class="brand-mark">▰</span><span>FileBox</span></a><p class="eyebrow">ERROR {{ code }}</p><h1>We couldn’t complete that request.</h1><p>{{ message }}</p><a class="button button-primary" href="{{ url_for('dashboard') if current_user else url_for('login') }}">Return to FileBox</a></main>{% endblock %}

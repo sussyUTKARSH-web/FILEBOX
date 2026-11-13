@@ -1,10 +1,8 @@
 """FileBox desktop interface (Tkinter + MySQL + C file-system backend)."""
 from __future__ import annotations
 
-import hashlib
 import os
 import re
-import secrets
 import tkinter as tk
 from datetime import datetime
 from pathlib import Path
@@ -15,33 +13,12 @@ from PIL import Image, ImageDraw, ImageFilter, ImageOps, ImageTk
 
 import database
 import os_backend
+from security import hash_password, safe_name, verify_password
 
 
 ROOT = Path(__file__).resolve().parents[1]
 STORAGE = ROOT / "storage"
 LOGIN_ART = ROOT / "assets" / "filebox_front_page.png"
-
-
-def hash_password(password: str) -> str:
-    salt = secrets.token_bytes(16)
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 310_000)
-    return f"{salt.hex()}${digest.hex()}"
-
-
-def verify_password(password: str, stored: str) -> bool:
-    try:
-        salt_hex, digest_hex = stored.split("$", 1)
-        digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), bytes.fromhex(salt_hex), 310_000)
-        return secrets.compare_digest(digest.hex(), digest_hex)
-    except (ValueError, TypeError):
-        return False
-
-
-def safe_name(value: str) -> str:
-    value = value.strip()
-    if not value or value in {".", ".."} or "/" in value or "\\" in value or "\0" in value:
-        raise ValueError("Use a folder or file name without path separators.")
-    return value
 
 
 def human_size(size: int) -> str:

@@ -6,6 +6,7 @@ import queue
 import subprocess
 import threading
 from concurrent.futures import Future
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 
@@ -16,43 +17,51 @@ EXECUTABLE = PROJECT_ROOT / "c_backend" / "filebox_os.exe"
 
 def _ensure_executable() -> Path:
     if not EXECUTABLE.exists() or EXECUTABLE.stat().st_mtime < SOURCE.stat().st_mtime:
-        compiler = os.environ.get("CC", "gcc")
-        subprocess.run(
-            [compiler, "-O2", "-o", str(EXECUTABLE), str(SOURCE)],
-            check=True,
-            cwd=PROJECT_ROOT,
-        )
+        with _build_semaphore:
+            if not EXECUTABLE.exists() or EXECUTABLE.stat().st_mtime < SOURCE.stat().st_mtime:
+                compiler = os.environ.get("CC", "gcc")
+                subprocess.run(
+                    [compiler, "-O2", "-o", str(EXECUTABLE), str(SOURCE)],
+                    check=True,
+                    cwd=PROJECT_ROOT,
+                )
     return EXECUTABLE
 
 
 _requests: queue.Queue = queue.Queue()
-_write_semaphore = threading.Semaphore(1)
+_build_semaphore = threading.Semaphore(1)
 _worker_started = False
+_worker_start_lock = threading.Lock()
+_executor = ThreadPoolExecutor(max_workers=max(4, min(16, int(os.environ.get("FILEBOX_FS_WORKERS", "8")))),
+                               thread_name_prefix="filebox-fs")
 
-
+#utkarshs work fcfs
 def _worker():
-    """Single FIFO worker demonstrates FCFS ordering for OS file requests."""
+    """FCFS admission to a worker pool; independent requests execute concurrently."""
     while True:
-        future, operation, args, mutating = _requests.get()
+        future, operation, args, _mutating = _requests.get()
         if future.set_running_or_notify_cancel():
             try:
-                if mutating:
-                    _write_semaphore.acquire()
-                try:
-                    future.set_result(operation(*args))
-                finally:
-                    if mutating:
-                        _write_semaphore.release()
+                execution = _executor.submit(operation, *args)
+                execution.add_done_callback(lambda completed, result=future: _copy_future(completed, result))
             except BaseException as exc:
                 future.set_exception(exc)
         _requests.task_done()
 
 
+def _copy_future(source: Future, target: Future):
+    try:
+        target.set_result(source.result())
+    except BaseException as exc:
+        target.set_exception(exc)
+
+#UTKARSH 
 def _dispatch(operation, *args, mutating=False):
     global _worker_started
-    if not _worker_started:
-        threading.Thread(target=_worker, name="filebox-fcfs", daemon=True).start()
-        _worker_started = True
+    with _worker_start_lock:
+        if not _worker_started:
+            threading.Thread(target=_worker, name="filebox-fcfs", daemon=True).start()
+            _worker_started = True
     future = Future()
     _requests.put((future, operation, args, mutating))
     return future.result()

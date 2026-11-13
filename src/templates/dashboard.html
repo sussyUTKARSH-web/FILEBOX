@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}{{ {'mine':'My Files','shared':'Shared With Me','recent':'Recent Files'}[section] }} · FileBox{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
+{% block content %}
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand sidebar-brand" href="{{ url_for('dashboard') }}"><span class="brand-mark">▰</span><span>FileBox</span></a>
+    <div class="sidebar-caption">YOUR SPACE</div>
+    <nav class="side-nav">
+      <a class="{{ 'active' if section == 'mine' else '' }}" href="{{ url_for('dashboard', section='mine') }}"><span>▣</span> My Files</a>
+      <a class="{{ 'active' if section == 'shared' else '' }}" href="{{ url_for('dashboard', section='shared') }}"><span>↗</span> Shared With Me</a>
+      <a class="{{ 'active' if section == 'recent' else '' }}" href="{{ url_for('dashboard', section='recent') }}"><span>◷</span> Recent Files</a>
+    </nav>
+    <section class="storage-card">
+      <div class="storage-icon">▤</div><strong>Local storage</strong>
+      <span>{{ human_size(stats.used_bytes) }} used</span>
+      <small>{{ stats.file_count }} file{{ '' if stats.file_count == 1 else 's' }} · stored on this computer</small>
+    </section>
+    <div class="sidebar-spacer"></div>
+    <a class="side-footer-link" href="{{ url_for('activity') }}">◴ &nbsp; Activity</a>
+    <div class="user-chip"><span class="avatar">{{ current_user.username[:1]|upper }}</span><span class="user-meta"><b>{{ current_user.username }}</b><small>{{ current_user.email }}</small></span>
+      <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="icon-button" title="Sign out" aria-label="Sign out">↪</button></form>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="page-header">
+      <div><p class="eyebrow">FILEBOX / LOCAL DRIVE</p><h1>{{ {'mine':'My Files','shared':'Shared With Me','recent':'Recent Files'}[section] }}</h1><p class="subtle">Your files, organized in one place.</p></div>
+      <div class="header-actions">
+        {% if section == 'mine' %}
+        <details class="action-pop"><summary class="button button-outline">＋ New folder</summary><form class="popover-form" method="post" action="{{ url_for('create_folder') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="parent_folder_id" value="{{ current_folder.folder_id if current_folder else '' }}"><label>Folder name<input name="name" maxlength="255" required autofocus></label><button class="button button-primary" type="submit">Create folder</button></form></details>
+        <details class="action-pop"><summary class="button button-primary">↑ Upload file</summary><form class="popover-form" method="post" enctype="multipart/form-data" action="{{ url_for('upload_file') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="parent_folder_id" value="{{ current_folder.folder_id if current_folder else '' }}"><label>Choose a file<input type="file" name="file" required></label><button class="button button-primary" type="submit">Upload</button></form></details>
+        {% endif %}
+      </div>
+    </header>
+
+    <form class="search-bar" method="get" action="{{ url_for('dashboard') }}">
+      <input type="hidden" name="section" value="{{ section }}">
+      {% if current_folder %}<input type="hidden" name="folder" value="{{ current_folder.folder_id }}">{% endif %}
+      <span class="search-glyph">⌕</span><input name="q" value="{{ search }}" placeholder="Search files by name…" aria-label="Search files">
+      <select name="type" aria-label="Filter by file type"><option value="">All types</option>{% for value,label in [('image','Images'),('document','Documents'),('spreadsheet','Spreadsheets'),('text','Text'),('audio','Audio'),('video','Video')] %}<option value="{{ value }}" {{ 'selected' if category == value else '' }}>{{ label }}</option>{% endfor %}</select>
+      <button class="button button-primary" type="submit">Search</button>
+    </form>
+
+    <div class="content-panel">
+      {% if section == 'mine' %}
+      <div class="breadcrumbs"><a href="{{ url_for('dashboard', section='mine') }}">My Files</a>{% for crumb in breadcrumbs %}<span>›</span><a href="{{ url_for('dashboard', section='mine', folder=crumb.folder_id) }}">{{ crumb.folder_name }}</a>{% endfor %}</div>
+      {% endif %}
+      <div class="list-toolbar"><div><strong>{{ files|length }} file{{ '' if files|length == 1 else 's' }}</strong>{% if current_folder %}<span class="subtle"> in {{ current_folder.folder_name }}</span>{% endif %}</div>
+        <form method="get" class="sort-controls" action="{{ url_for('dashboard') }}"><input type="hidden" name="section" value="{{ section }}"><input type="hidden" name="q" value="{{ search }}"><input type="hidden" name="type" value="{{ category }}">{% if current_folder %}<input type="hidden" name="folder" value="{{ current_folder.folder_id }}">{% endif %}<label for="sort">Sort by</label><select id="sort" name="sort"><option value="name" {{ 'selected' if sort == 'name' else '' }}>Name</option><option value="size" {{ 'selected' if sort == 'size' else '' }}>Size</option><option value="created" {{ 'selected' if sort == 'created' else '' }}>Created</option><option value="modified" {{ 'selected' if sort == 'modified' else '' }}>Modified</option><option value="type" {{ 'selected' if sort == 'type' else '' }}>Type</option></select><select name="direction" aria-label="Sort direction"><option value="asc" {{ 'selected' if direction == 'asc' else '' }}>Ascending</option><option value="desc" {{ 'selected' if direction == 'desc' else '' }}>Descending</option></select><button class="button button-small button-outline">Apply</button></form>
+      </div>
+
+      {% if folders %}<section class="folder-section"><div class="section-caption">FOLDERS</div><div class="folder-grid">{% for folder in folders %}<article class="folder-card"><a class="folder-link" href="{{ url_for('dashboard', section='mine', folder=folder.folder_id) }}"><span class="folder-icon">▰</span><span>{{ folder.folder_name }}</span></a><details class="row-menu"><summary aria-label="Folder actions">•••</summary><form method="post" action="{{ url_for('rename_folder', folder_id=folder.folder_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}"><label>Rename<input name="name" value="{{ folder.folder_name }}" maxlength="255" required></label><button class="button button-small button-outline">Save</button></form></details></article>{% endfor %}</div></section>{% endif %}
+
+      {% if files %}<div class="file-table-wrap"><table class="file-table"><thead><tr><th><a href="{{ url_for('dashboard', section=section, folder=current_folder.folder_id if current_folder else None, q=search, type=category, sort='name', direction='desc' if sort == 'name' and direction == 'asc' else 'asc') }}">Name</a></th><th>Owner / Access</th><th><a href="{{ url_for('dashboard', section=section, folder=current_folder.folder_id if current_folder else None, q=search, type=category, sort='modified', direction='desc') }}">Modified</a></th><th><a href="{{ url_for('dashboard', section=section, folder=current_folder.folder_id if current_folder else None, q=search, type=category, sort='size', direction='desc') }}">Size</a></th><th>Actions</th></tr></thead><tbody>
+      {% for file in files %}<tr><td><a class="file-name" href="{{ url_for('preview_file', file_id=file.file_id) }}"><span class="file-icon file-{{ file.file_type }}">{{ '▧' if file.file_type in ['png','jpg','jpeg','gif','webp','bmp'] else '▤' }}</span><span><b>{{ file.file_name }}</b><small>{{ file.file_type|upper if file.file_type else 'FILE' }}</small></span></a></td><td><span class="owner-name">{{ file.owner_name }}</span><span class="access-pill {{ 'access-owner' if file.is_owner else 'access-write' if file.can_write else 'access-read' }}">{{ file.access_label }}</span></td><td class="date-cell">{{ file.modified_label }}</td><td class="size-cell">{{ file.size_label }}</td><td><div class="row-actions">
+        <a class="icon-button" href="{{ url_for('preview_file', file_id=file.file_id) }}" title="Open preview">↗</a>
+        {% if file.can_download %}<a class="icon-button" href="{{ url_for('download_file', file_id=file.file_id) }}" title="Download">↓</a>{% endif %}
+        {% if file.is_owner %}<a class="icon-button" href="{{ url_for('share_file', file_id=file.file_id) }}" title="Sharing settings">♧</a>{% endif %}
+        {% if file.is_owner %}<details class="row-menu"><summary aria-label="File actions">•••</summary><div class="menu-pop"><form method="post" action="{{ url_for('move_file', file_id=file.file_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}"><label>Rename<input name="name" value="{{ file.file_name }}" maxlength="255" required></label><label>Move to<select name="folder_id"><option value="">My Files (root)</option>{% for item in all_folders %}<option value="{{ item.folder_id }}" {{ 'selected' if file.folder_id == item.folder_id else '' }}>{{ item.relative_path }}</option>{% endfor %}</select></label><button class="button button-small button-outline">Save changes</button></form><form method="post" action="{{ url_for('delete_file', file_id=file.file_id) }}" data-confirm="Permanently delete {{ file.file_name }}?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}"><button class="button button-small button-danger">Delete file</button></form></div></details>{% endif %}
+      </div></td></tr>{% endfor %}</tbody></table></div>
+      {% elif not folders %}<div class="empty-state"><div class="empty-art">▰</div><h2>{{ 'No files in this folder yet' if section == 'mine' else 'Nothing to show yet' }}</h2><p>{{ 'Upload a file or make a folder to get started.' if section == 'mine' else 'Files shared with you will appear here.' }}</p>{% if section == 'mine' %}<a class="button button-primary" href="#top">Use the upload button above</a>{% endif %}</div>{% endif %}
+    </div>
+    <footer class="page-footer">FileBox stores file contents locally and keeps searchable metadata in MySQL.</footer>
+  </main>
+</div>
+{% endblock %}
